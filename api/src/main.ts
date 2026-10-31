@@ -51,11 +51,15 @@ async function bootstrap(): Promise<void> {
     saveUninitialized: false,
     rolling: true,
     cookie: {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
-      maxAge: Number.parseInt(process.env.SESSION_MAX_AGE_MS ?? '28800000', 10),
-    },
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' : 'lax',
+  path: '/',
+  maxAge: Number.parseInt(
+    process.env.SESSION_MAX_AGE_MS ?? '28800000',
+    10,
+  ),
+},
   }) as RequestHandler);
 
   // Require a valid session-backed CSRF token for all state-changing requests.

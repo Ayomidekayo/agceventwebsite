@@ -29,16 +29,26 @@ let csrfPromise: Promise<string> | null = null;
 
 async function ensureCsrfToken(): Promise<string> {
   if (csrfToken) return csrfToken;
+
   if (!csrfPromise) {
-    const pending = api.get<{ csrfToken: string }>('/auth/csrf')
+    csrfPromise = api
+      .get<{ csrfToken: string }>('/auth/csrf')
       .then((response) => {
-        csrfToken = response.data.csrfToken;
-        return response.data.csrfToken;
+        const token = response.data?.csrfToken;
+
+        if (typeof token !== 'string' || token.length < 32) {
+          throw new Error('The API did not return a valid CSRF token.');
+        }
+
+        csrfToken = token;
+        return token;
       })
-      .finally(() => { csrfPromise = null; });
-    csrfPromise = pending;
+      .finally(() => {
+        csrfPromise = null;
+      });
   }
-  return csrfPromise!;
+
+  return csrfPromise;
 }
 
 export function resetCsrfToken(): void {
