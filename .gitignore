@@ -1,0 +1,11 @@
+node_modules/
+web/node_modules/
+web/dist/
+api/node_modules/
+api/dist/
+api/.env
+web/.env
+.env
+coverage/
+.DS_Store
+*.log

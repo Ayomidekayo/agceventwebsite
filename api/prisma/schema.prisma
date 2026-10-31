@@ -1,0 +1,286 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  EVENT_ADMIN
+  REGISTRATION_MANAGER
+  SPONSORSHIP_MANAGER
+  VOLUNTEER_MANAGER
+  CONTENT_MANAGER
+  CHECK_IN_OFFICER
+  REPORT_VIEWER
+}
+
+enum RegistrationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  CHECKED_IN
+}
+
+enum VolunteerStatus {
+  PENDING
+  UNDER_REVIEW
+  SHORTLISTED
+  ACCEPTED
+  WAITLISTED
+  REJECTED
+}
+
+enum SponsorshipStatus {
+  NEW
+  CONTACTED
+  IN_DISCUSSION
+  PROPOSAL_SENT
+  CONFIRMED
+  DECLINED
+  ON_HOLD
+}
+
+enum SponsorshipCommitmentStatus {
+  PROPOSED
+  PLEDGED
+  CONFIRMED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model Event {
+  id                  String                  @id @default(cuid())
+  slug                String                  @unique
+  title               String
+  theme               String
+  description         String                  @db.Text
+  eventDate           DateTime
+  startTime           String
+  venue               String
+  venueStatus         String                  @default("PENDING_CONFIRMATION")
+  targetAttendance    Int                     @default(1000)
+  registrationMode    String                  @default("FREE_PENDING_APPROVAL")
+  status              EventStatus             @default(DRAFT)
+  registrations       Registration[]
+  volunteers          VolunteerApplication[]
+  sponsorshipEnquiries SponsorshipEnquiry[]
+  commitments         SponsorshipCommitment[]
+  speakers            Speaker[]
+  sessions            Session[]
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@index([status, eventDate])
+}
+
+model AdminUser {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  name          String
+  passwordHash  String
+  role          AdminRole  @default(REPORT_VIEWER)
+  isActive      Boolean    @default(true)
+  lastLoginAt   DateTime?
+  auditLogs     AuditLog[]
+  receipts      SponsorshipReceipt[] @relation("ReceiptVerifier")
+  reviewedVolunteerApplications VolunteerApplication[] @relation("VolunteerReviewer")
+  assignedSponsorshipEnquiries SponsorshipEnquiry[] @relation("SponsorshipAssignee")
+  invitationsSent AdminInvitation[] @relation("AdminInviter")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([role, isActive])
+}
+
+
+model AdminInvitation {
+  id          String    @id @default(cuid())
+  email       String
+  name        String
+  role        AdminRole
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  invitedById String
+  invitedBy   AdminUser @relation("AdminInviter", fields: [invitedById], references: [id], onDelete: Restrict)
+  createdAt   DateTime  @default(now())
+
+  @@index([email, expiresAt])
+  @@index([acceptedAt, expiresAt])
+}
+
+model Registration {
+  id                String             @id @default(cuid())
+  eventId           String
+  event             Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  reference         String             @unique
+  firstName         String
+  lastName          String
+  email             String
+  phone             String
+  affiliation       String?
+  occupation        String?
+  interest          String?
+  source            String?
+  status            RegistrationStatus @default(PENDING)
+  consentAt         DateTime
+  checkedInAt       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([eventId, email])
+  @@index([eventId, createdAt])
+  @@index([eventId, status])
+  @@index([lastName, firstName])
+}
+
+model VolunteerApplication {
+  id             String          @id @default(cuid())
+  eventId        String
+  event          Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  reference      String          @unique
+  fullName       String
+  email          String
+  phone          String
+  location       String?
+  occupation     String?
+  department     String
+  experience     String?         @db.Text
+  availability   String?
+  motivation     String          @db.Text
+  status         VolunteerStatus @default(PENDING)
+  reviewerId     String?
+  reviewer       AdminUser?      @relation("VolunteerReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewedAt     DateTime?
+  consentAt      DateTime
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([eventId, email])
+  @@index([eventId, status, createdAt])
+  @@index([department])
+}
+
+model SponsorshipEnquiry {
+  id             String             @id @default(cuid())
+  eventId        String
+  event          Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  reference      String             @unique
+  sponsorType    String
+  name           String
+  organisation   String?
+  email          String
+  phone          String
+  supportLevel   String?
+  supportType    String
+  indicativeAmount String?
+  message        String             @db.Text
+  status         SponsorshipStatus  @default(NEW)
+  assignedToId   String?
+  assignedTo     AdminUser?        @relation("SponsorshipAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  consentAt      DateTime
+  commitments    SponsorshipCommitment[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([eventId, status, createdAt])
+  @@index([email])
+  @@index([organisation])
+}
+
+model SponsorshipCommitment {
+  id          String                       @id @default(cuid())
+  eventId     String
+  event       Event                        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  enquiryId   String?
+  enquiry     SponsorshipEnquiry?          @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
+  sponsorName String
+  supportType String
+  amount      Decimal?                     @db.Decimal(14, 2)
+  currency    String                       @default("NGN")
+  status      SponsorshipCommitmentStatus  @default(PROPOSED)
+  notes       String?                      @db.Text
+  receipts    SponsorshipReceipt[]
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
+
+  @@index([eventId, status])
+}
+
+model SponsorshipReceipt {
+  id             String               @id @default(cuid())
+  commitmentId   String
+  commitment     SponsorshipCommitment @relation(fields: [commitmentId], references: [id], onDelete: Cascade)
+  amount         Decimal              @db.Decimal(14, 2)
+  currency       String               @default("NGN")
+  receivedAt     DateTime             @default(now())
+  reference      String?
+  verifiedById   String
+  verifiedBy     AdminUser            @relation("ReceiptVerifier", fields: [verifiedById], references: [id], onDelete: Restrict)
+  notes          String?              @db.Text
+  createdAt      DateTime             @default(now())
+
+  @@index([commitmentId, receivedAt])
+}
+
+model Speaker {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  fullName    String
+  role        String?
+  biography   String?  @db.Text
+  imageUrl    String?
+  isPublished Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([eventId, isPublished, sortOrder])
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  title       String
+  description String?  @db.Text
+  startsAt    DateTime?
+  endsAt      DateTime?
+  sessionType String?
+  location    String?
+  isPublished Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([eventId, isPublished, sortOrder])
+}
+
+model AuditLog {
+  id           String    @id @default(cuid())
+  actorId      String?
+  actor        AdminUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action       String
+  entityType   String
+  entityId     String?
+  metadata     Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+}

@@ -1,0 +1,19 @@
+{
+  "name": "agn-conference-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Activation Global Network conference website and event management platform",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev:web": "npm --prefix web run dev",
+    "build:web": "npm --prefix web run build",
+    "preview:web": "npm --prefix web run preview",
+    "dev:api": "npm --prefix api run start:dev",
+    "build:api": "npm --prefix api run build",
+    "db:generate": "npm --prefix api run prisma:generate",
+    "db:migrate": "npm --prefix api run prisma:migrate",
+    "db:seed": "npm --prefix api run prisma:seed"
+  }
+}
