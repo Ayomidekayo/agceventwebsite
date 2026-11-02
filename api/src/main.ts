@@ -19,7 +19,10 @@ async function bootstrap(): Promise<void> {
   }
 
   const app = await NestFactory.create(AppModule);
-  const isProduction = process.env.NODE_ENV === 'production';
+ const isVercel = process.env.VERCEL === '1';
+
+const isProduction =
+  process.env.NODE_ENV === 'production' || isVercel;
   const allowedOrigins = (process.env.WEB_ORIGIN ?? 'http://localhost:5173')
     .split(',')
     .map((value) => value.trim())
@@ -36,7 +39,9 @@ async function bootstrap(): Promise<void> {
     allowedHeaders: ['Content-Type', 'X-CSRF-Token'],
   });
 
-  if (isProduction) app.getHttpAdapter().getInstance().set('trust proxy', 1);
+if (isVercel) {
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+}
 
   const PgStore = connectPgSimple(session);
   app.use(session({
