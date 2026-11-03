@@ -1,8 +1,23 @@
+
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 
+import {
+  ArrowUpRight,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  Copy,
+  Mail,
+  MoveRight,
+  ShieldCheck,
+  X,
+} from 'lucide-react';
+
 import { api, getApiError } from '../../lib/api';
+import { sendEmailNotification } from '../../lib/web3forms';
+
 import PublicLayout from '../../layouts/PublicLayout';
 import PageIntro from '../../components/forms/PageIntro';
 import FormField from '../../components/forms/FormField';
@@ -11,18 +26,9 @@ import NoticeBox, { type Notice } from '../../components/NoticeBox';
 
 import { EVENT_DATE } from '../../config/event';
 
-import {
-  ArrowUpRight,
-  CalendarDays,
-  Check,
-  CheckCircle2,
-  ClipboardCheck,
-  Mail,
-  MoveRight,
-  ShieldCheck,
-} from 'lucide-react';
-
-const WEB3FORMS_ENDPOINT = 'https://api.web3forms.com/submit';
+// =====================================================
+// TYPES
+// =====================================================
 
 interface RegistrationForm {
   firstName: string;
@@ -41,6 +47,10 @@ interface RegistrationSuccess {
   email: string;
 }
 
+// =====================================================
+// CONSTANTS
+// =====================================================
+
 const INITIAL_FORM: RegistrationForm = {
   firstName: '',
   lastName: '',
@@ -52,84 +62,82 @@ const INITIAL_FORM: RegistrationForm = {
   source: '',
 };
 
+// =====================================================
+// EMAIL NOTIFICATION
+// =====================================================
+
 async function sendAdminNotification(
   form: RegistrationForm,
   reference: string,
-) {
-  const accessKey = import.meta.env.VITE_WEB3FORMS_ACCESS_KEY;
+): Promise<void> {
+  await sendEmailNotification({
+    subject: 'New AGN 2027 Participant Registration',
 
-  if (!accessKey) {
-    console.warn('Web3Forms access key is not configured.');
-    return;
-  }
+    name: `${form.firstName} ${form.lastName}`,
 
-  const formData = new FormData();
+    email: form.email,
 
-  formData.append('access_key', accessKey);
-  formData.append('subject', 'New AGN 2027 Participant Registration');
-  formData.append('from_name', 'AGN 2027 Registration System');
+    phone: form.phone,
 
-  formData.append(
-    'name',
-    `${form.firstName} ${form.lastName}`,
-  );
+    reference,
 
-  formData.append('email', form.email);
-  formData.append('phone', form.phone);
-  formData.append('reference', reference);
-
-  formData.append(
-    'message',
-    `
-NEW AGN 2027 REGISTRATION
+    message: `
+NEW AGN 2027 PARTICIPANT REGISTRATION
 
 PARTICIPANT DETAILS
+--------------------------------
 
 Name: ${form.firstName} ${form.lastName}
 Email: ${form.email}
 Phone: ${form.phone}
 
 AFFILIATION
+--------------------------------
 
 Organisation: ${form.affiliation || 'Not provided'}
 Occupation: ${form.occupation || 'Not provided'}
 
 INTERESTS
+--------------------------------
 
 Interest: ${form.interest || 'Not provided'}
 Source: ${form.source || 'Not provided'}
 
-REGISTRATION REFERENCE
-${reference}
+REGISTRATION DETAILS
+--------------------------------
 
+Reference: ${reference}
 Event: AGN 2027
 Theme: From Block to Breakthrough
 Date: ${EVENT_DATE}
+
+Activation Global Network
     `.trim(),
-  );
-
-  const response = await fetch(WEB3FORMS_ENDPOINT, {
-    method: 'POST',
-    body: formData,
   });
-
-  const result = await response.json();
-
-  if (!response.ok || !result.success) {
-    throw new Error('Web3Forms notification delivery failed.');
-  }
 }
 
+// =====================================================
+// COMPONENT
+// =====================================================
+
 export default function RegistrationPage() {
-  const [form, setForm] = useState<RegistrationForm>(INITIAL_FORM);
+  const [form, setForm] =
+    useState<RegistrationForm>(INITIAL_FORM);
 
   const [consent, setConsent] = useState(false);
+
   const [busy, setBusy] = useState(false);
 
   const [notice, setNotice] = useState<Notice | null>(null);
 
   const [registration, setRegistration] =
     useState<RegistrationSuccess | null>(null);
+
+  const [copied, setCopied] = useState(false);
+
+  // =====================================================
+  // FORM UPDATE
+  // =====================================================
 
   const update = (
     key: keyof RegistrationForm,
@@ -141,8 +149,50 @@ export default function RegistrationPage() {
     }));
   };
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  // =====================================================
+  // COPY REGISTRATION REFERENCE
+  // =====================================================
+
+  const copyReference = async () => {
+    if (!registration?.reference) return;
+
+    try {
+      await navigator.clipboard.writeText(
+        registration.reference,
+      );
+
+      setCopied(true);
+
+      window.setTimeout(() => {
+        setCopied(false);
+      }, 2200);
+    } catch {
+      setNotice({
+        kind: 'error',
+        text: 'Unable to copy your reference. Please copy it manually.',
+      });
+    }
+  };
+
+  // =====================================================
+  // CLOSE SUCCESS MODAL
+  // =====================================================
+
+  const closeSuccessModal = () => {
+    setRegistration(null);
+    setCopied(false);
+  };
+
+  // =====================================================
+  // SUBMIT REGISTRATION
+  // =====================================================
+
+  const submit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
+
+    if (busy) return;
 
     if (!consent) {
       setNotice({
@@ -157,7 +207,8 @@ export default function RegistrationPage() {
     setNotice(null);
 
     try {
-      // STEP 1: Save registration in our backend.
+      // 1. Save registration through our NestJS backend.
+
       const response = await api.post('/registrations', {
         ...form,
         consentToPrivacy: consent,
@@ -170,27 +221,39 @@ export default function RegistrationPage() {
 
       if (!reference) {
         throw new Error(
-          'Your registration was submitted, but we could not retrieve its reference. Please contact the AGN team.',
+          'We could not retrieve your registration reference. Please contact the AGN team before submitting again.',
         );
       }
 
-      // STEP 2: Show success independently of email delivery.
-      setRegistration({
+      // 2. Store successful registration details.
+
+      const successfulRegistration: RegistrationSuccess = {
         reference,
         name: `${form.firstName} ${form.lastName}`,
         email: form.email,
-      });
+      };
 
-      // STEP 3: Notify administrators through Web3Forms.
-      // An email failure must never undo a successful registration.
-      try {
-        await sendAdminNotification(form, reference);
-      } catch (emailError) {
-        console.error(
-          'AGN registration notification could not be delivered:',
-          emailError,
-        );
-      }
+      // 3. Open the success modal immediately.
+      // Email delivery must not delay or invalidate registration.
+
+      setRegistration(successfulRegistration);
+
+      // 4. Send administrator notification separately.
+      // A notification failure must never undo registration.
+
+      void sendAdminNotification(form, reference).catch(
+        (emailError) => {
+          console.error(
+            'AGN administrator notification failed:',
+            emailError,
+          );
+        },
+      );
+
+      // 5. Clear the form after successful registration.
+
+      setForm(INITIAL_FORM);
+      setConsent(false);
 
     } catch (error) {
       setNotice({
@@ -206,219 +269,7 @@ export default function RegistrationPage() {
   };
 
   // =====================================================
-  // SUCCESS SCREEN
-  // =====================================================
-
-  if (registration) {
-    return (
-      <PublicLayout>
-        <main className="form-page">
-          <div className="container">
-            <div
-              className="mx-auto w-full max-w-2xl py-12 sm:py-20"
-              aria-live="polite"
-            >
-              <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl">
-
-                {/* Success header */}
-                <div className="bg-[#101D35] px-6 py-12 text-center text-white sm:px-12">
-
-                  <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/10 ring-8 ring-white/5">
-                    <CheckCircle2
-                      size={42}
-                      className="text-[#D9A441]"
-                      strokeWidth={1.7}
-                    />
-                  </div>
-
-                  <span className="text-xs font-semibold uppercase tracking-[0.25em] text-[#D9A441]">
-                    AGN 2027 / REGISTRATION CONFIRMED
-                  </span>
-
-                  <h1 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
-                    You're officially
-                    <br />
-                    <span className="text-[#D9A441]">
-                      on the list!
-                    </span>
-                  </h1>
-
-                  <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-white/75 sm:text-base">
-                    Thank you for taking this step. Your registration
-                    for AGN 2027 has been received successfully.
-                    We look forward to having you with us.
-                  </p>
-                </div>
-
-                {/* Confirmation details */}
-                <div className="space-y-7 p-6 sm:p-10">
-
-                  <div>
-                    <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
-                      Your registration reference
-                    </p>
-
-                    <div className="mt-3 flex items-center justify-center gap-3 rounded-xl border border-dashed border-[#D9A441] bg-[#D9A441]/5 px-4 py-5">
-                      <span className="break-all text-lg font-bold tracking-wider text-[#101D35] sm:text-2xl">
-                        {registration.reference}
-                      </span>
-
-                      <ClipboardCheck
-                        size={21}
-                        className="shrink-0 text-[#D9A441]"
-                      />
-                    </div>
-
-                    <p className="mt-3 text-center text-xs leading-6 text-gray-500">
-                      Keep this reference safe. You may need it
-                      for future conference correspondence.
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl bg-gray-50 p-5 sm:p-6">
-
-                    <h2 className="font-bold text-[#101D35]">
-                      Your conference details
-                    </h2>
-
-                    <div className="mt-5 space-y-4">
-
-                      <div className="flex items-start gap-3">
-                        <CalendarDays
-                          size={19}
-                          className="mt-0.5 shrink-0 text-[#D9A441]"
-                        />
-
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">
-                            AGN 2027
-                          </p>
-
-                          <p className="mt-1 text-sm text-gray-500">
-                            {EVENT_DATE}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <Mail
-                          size={19}
-                          className="mt-0.5 shrink-0 text-[#D9A441]"
-                        />
-
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">
-                            Registration email
-                          </p>
-
-                          <p className="mt-1 break-all text-sm text-gray-500">
-                            {registration.email}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <ShieldCheck
-                          size={19}
-                          className="mt-0.5 shrink-0 text-[#D9A441]"
-                        />
-
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">
-                            Registration status
-                          </p>
-
-                          <p className="mt-1 text-sm text-green-700">
-                            Successfully received
-                          </p>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-
-                  {/* Next steps */}
-                  <div>
-                    <h2 className="font-bold text-[#101D35]">
-                      What happens next?
-                    </h2>
-
-                    <div className="mt-4 space-y-4">
-
-                      {[
-                        'Keep your registration reference for future correspondence.',
-                        'Watch your inbox for important conference updates.',
-                        'Stay connected with Activation Global Network for announcements.',
-                      ].map((item, index) => (
-                        <div
-                          key={item}
-                          className="flex items-start gap-3"
-                        >
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#D9A441]/15 text-xs font-bold text-[#101D35]">
-                            {index + 1}
-                          </span>
-
-                          <p className="text-sm leading-6 text-gray-600">
-                            {item}
-                          </p>
-                        </div>
-                      ))}
-
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-green-100 bg-green-50 p-4">
-                    <div className="flex items-start gap-3">
-                      <Check
-                        size={19}
-                        className="mt-0.5 shrink-0 text-green-700"
-                      />
-
-                      <p className="text-sm leading-6 text-green-800">
-                        Your registration has been recorded.
-                        Thank you for being part of the AGN 2027
-                        journey.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-
-                    <Link
-                      to="/"
-                      className="button button-dark flex flex-1 items-center justify-center gap-2"
-                    >
-                      Return to homepage
-                      <ArrowUpRight size={17} />
-                    </Link>
-
-                    <Link
-                      to="/"
-                      className="button flex flex-1 items-center justify-center gap-2 border border-gray-200"
-                    >
-                      Explore AGN
-                      <MoveRight size={17} />
-                    </Link>
-
-                  </div>
-
-                  <p className="text-center text-xs leading-6 text-gray-400">
-                    Activation Global Network
-                    <br />
-                    FROM BLOCK TO BREAKTHROUGH
-                  </p>
-
-                </div>
-              </div>
-            </div>
-          </div>
-        </main>
-      </PublicLayout>
-    );
-  }
-
-  // =====================================================
-  // REGISTRATION FORM
+  // RENDER
   // =====================================================
 
   return (
@@ -426,7 +277,11 @@ export default function RegistrationPage() {
       <main className="form-page">
         <div className="container form-page-grid">
 
-          <div className="form-aside form-aside-orange">
+          {/* =============================================
+              LEFT INFORMATION PANEL
+          ============================================== */}
+
+          <aside className="form-aside form-aside-orange">
             <span className="aside-kicker">
               AGN 2027 / PARTICIPANT
             </span>
@@ -449,10 +304,13 @@ export default function RegistrationPage() {
                 {EVENT_DATE}
               </div>
             </div>
-          </div>
+          </aside>
 
-          <div className="form-main">
+          {/* =============================================
+              REGISTRATION FORM
+          ============================================== */}
 
+          <section className="form-main">
             <PageIntro
               eyebrow="YOUR PLACE IN THE ROOM"
               title={
@@ -472,12 +330,16 @@ export default function RegistrationPage() {
               className="application-form"
             >
 
+              {/* PERSONAL INFORMATION */}
+
               <div className="form-section-label">
                 <span>01</span>
 
                 <div>
                   <strong>About you</strong>
-                  <small>How should we reach you?</small>
+                  <small>
+                    How should we reach you?
+                  </small>
                 </div>
               </div>
 
@@ -487,7 +349,9 @@ export default function RegistrationPage() {
                   label="First name"
                   name="firstName"
                   value={form.firstName}
-                  onChange={(v) => update('firstName', v)}
+                  onChange={(value) =>
+                    update('firstName', value)
+                  }
                   required
                   placeholder="Your first name"
                 />
@@ -496,7 +360,9 @@ export default function RegistrationPage() {
                   label="Last name"
                   name="lastName"
                   value={form.lastName}
-                  onChange={(v) => update('lastName', v)}
+                  onChange={(value) =>
+                    update('lastName', value)
+                  }
                   required
                   placeholder="Your last name"
                 />
@@ -505,7 +371,9 @@ export default function RegistrationPage() {
                   label="Email address"
                   name="email"
                   value={form.email}
-                  onChange={(v) => update('email', v)}
+                  onChange={(value) =>
+                    update('email', value)
+                  }
                   required
                   type="email"
                   placeholder="you@example.com"
@@ -515,7 +383,9 @@ export default function RegistrationPage() {
                   label="Phone number"
                   name="phone"
                   value={form.phone}
-                  onChange={(v) => update('phone', v)}
+                  onChange={(value) =>
+                    update('phone', value)
+                  }
                   required
                   type="tel"
                   placeholder="e.g. 080..."
@@ -525,7 +395,9 @@ export default function RegistrationPage() {
                   label="School, organisation or business"
                   name="affiliation"
                   value={form.affiliation}
-                  onChange={(v) => update('affiliation', v)}
+                  onChange={(value) =>
+                    update('affiliation', value)
+                  }
                   placeholder="Where you study or work"
                 />
 
@@ -533,7 +405,9 @@ export default function RegistrationPage() {
                   label="What best describes you?"
                   name="occupation"
                   value={form.occupation}
-                  onChange={(v) => update('occupation', v)}
+                  onChange={(value) =>
+                    update('occupation', value)
+                  }
                   options={[
                     'Student',
                     'Young professional',
@@ -547,11 +421,14 @@ export default function RegistrationPage() {
 
               </div>
 
+              {/* INTERESTS */}
+
               <div className="form-section-label form-section-spaced">
                 <span>02</span>
 
                 <div>
                   <strong>Your interests</strong>
+
                   <small>
                     Help us understand what brings you here.
                   </small>
@@ -564,7 +441,9 @@ export default function RegistrationPage() {
                   label="What are you most interested in?"
                   name="interest"
                   value={form.interest}
-                  onChange={(v) => update('interest', v)}
+                  onChange={(value) =>
+                    update('interest', value)
+                  }
                   options={[
                     'Personal growth and mindset',
                     'Leadership',
@@ -580,7 +459,9 @@ export default function RegistrationPage() {
                   label="How did you hear about AGN?"
                   name="source"
                   value={form.source}
-                  onChange={(v) => update('source', v)}
+                  onChange={(value) =>
+                    update('source', value)
+                  }
                   options={[
                     'WhatsApp',
                     'Instagram / social media',
@@ -593,6 +474,8 @@ export default function RegistrationPage() {
                 />
 
               </div>
+
+              {/* PRIVACY CONSENT */}
 
               <Consent
                 checked={consent}
@@ -612,16 +495,25 @@ export default function RegistrationPage() {
                 }
               />
 
+              {/* SUBMIT BUTTON */}
+
               <button
                 disabled={busy}
-                className="button button-dark button-submit"
+                className="button button-dark button-submit disabled:cursor-not-allowed disabled:opacity-60"
                 type="submit"
               >
                 {busy
                   ? 'Submitting registration…'
                   : 'Submit registration'}
 
-                <ArrowUpRight size={18} />
+                {busy ? (
+                  <span
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <ArrowUpRight size={18} />
+                )}
               </button>
 
               <p className="form-smallprint">
@@ -631,9 +523,252 @@ export default function RegistrationPage() {
               </p>
 
             </form>
-          </div>
+          </section>
         </div>
       </main>
+
+      {/* =================================================
+          PROFESSIONAL REGISTRATION SUCCESS MODAL
+      ================================================== */}
+
+      {registration && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/55 px-3 py-5 backdrop-blur-sm sm:px-6 sm:py-8"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeSuccessModal();
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="registration-success-title"
+            className="relative my-auto w-full max-w-[510px] overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl sm:rounded-3xl"
+          >
+
+            {/* BRAND ACCENT */}
+
+            <div className="h-1 w-full bg-[#D9A441]" />
+
+            {/* CLOSE BUTTON */}
+
+            <button
+              type="button"
+              onClick={closeSuccessModal}
+              aria-label="Close confirmation"
+              className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition hover:bg-gray-200 hover:text-gray-900 sm:right-5 sm:top-5"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="px-5 pb-7 pt-9 sm:px-9 sm:pb-9 sm:pt-11">
+
+              {/* SUCCESS ICON */}
+
+              <div className="flex justify-center">
+                <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[#D9A441]/10 ring-8 ring-[#D9A441]/5 sm:h-20 sm:w-20">
+                  <CheckCircle2
+                    size={42}
+                    strokeWidth={1.6}
+                    className="text-[#B8862B]"
+                  />
+                </div>
+              </div>
+
+              {/* SUCCESS HEADING */}
+
+              <div className="mt-6 text-center">
+                <span className="inline-flex items-center gap-2 rounded-full bg-green-50 px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-green-700">
+                  <Check size={13} />
+                  Registration confirmed
+                </span>
+
+                <h2
+                  id="registration-success-title"
+                  className="mt-5 text-[27px] font-bold leading-tight tracking-tight text-[#172033] sm:text-4xl"
+                >
+                  You're on the list!
+                </h2>
+
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-7 text-gray-500">
+                  Hello {registration.name}, your registration
+                  for AGN 2027 has been successfully received.
+                  We're delighted to have you join us.
+                </p>
+              </div>
+
+              {/* REFERENCE */}
+
+              <div className="mt-7 rounded-2xl border border-[#D9A441]/40 bg-[#D9A441]/5 px-4 py-5 text-center sm:px-5">
+
+                <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-gray-500">
+                  Your registration reference
+                </p>
+
+                <div className="mt-3 flex min-w-0 items-center justify-center gap-2">
+
+                  <span className="break-all text-base font-bold tracking-wide text-[#172033] sm:text-xl">
+                    {registration.reference}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={copyReference}
+                    aria-label="Copy registration reference"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition hover:border-[#D9A441] hover:text-[#172033]"
+                  >
+                    {copied ? (
+                      <CheckCircle2
+                        size={17}
+                        className="text-green-600"
+                      />
+                    ) : (
+                      <Copy size={17} />
+                    )}
+                  </button>
+
+                </div>
+
+                <p className="mt-3 text-xs text-gray-500">
+                  {copied
+                    ? 'Reference copied successfully.'
+                    : 'Save this reference for future correspondence.'}
+                </p>
+
+              </div>
+
+              {/* EVENT DETAILS */}
+
+              <div className="mt-5 space-y-4 rounded-2xl bg-gray-50 p-4 sm:p-5">
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#B8862B] shadow-sm">
+                    <CalendarDays size={19} />
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">
+                      AGN 2027
+                    </p>
+
+                    <p className="mt-1 text-xs text-gray-500">
+                      {EVENT_DATE}
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#B8862B] shadow-sm">
+                    <Mail size={19} />
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">
+                      Registered email
+                    </p>
+
+                    <p className="mt-1 break-all text-xs text-gray-500">
+                      {registration.email}
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#B8862B] shadow-sm">
+                    <ShieldCheck size={19} />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Registration status
+                    </p>
+
+                    <p className="mt-1 text-xs font-medium text-green-700">
+                      Successfully received
+                    </p>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* NEXT STEPS */}
+
+              <div className="mt-6">
+
+                <h3 className="text-sm font-bold text-[#172033]">
+                  What happens next?
+                </h3>
+
+                <div className="mt-4 space-y-3">
+
+                  {[
+                    'Keep your registration reference safe.',
+                    'Watch your inbox for important conference updates.',
+                    'Stay connected with Activation Global Network for announcements.',
+                  ].map((item, index) => (
+                    <div
+                      key={item}
+                      className="flex items-start gap-3"
+                    >
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#D9A441]/15 text-[11px] font-bold text-[#172033]">
+                        {index + 1}
+                      </span>
+
+                      <p className="text-xs leading-6 text-gray-600 sm:text-sm">
+                        {item}
+                      </p>
+                    </div>
+                  ))}
+
+                </div>
+              </div>
+
+              {/* CONFIRMATION MESSAGE */}
+
+              <div className="mt-6 rounded-xl border border-green-100 bg-green-50 px-4 py-3.5">
+                <p className="text-xs leading-6 text-green-800">
+                  Your registration has been recorded successfully.
+                  Thank you for taking this step towards your next
+                  breakthrough.
+                </p>
+              </div>
+
+              {/* ACTION */}
+
+              <Link
+                to="/"
+                onClick={() => setRegistration(null)}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#172033] px-5 py-4 text-sm font-semibold text-white transition duration-200 hover:bg-[#263754] focus:outline-none focus:ring-4 focus:ring-[#172033]/15"
+              >
+                Explore AGN
+                <MoveRight size={17} />
+              </Link>
+
+              {/* FOOTER */}
+
+              <div className="mt-6 text-center">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">
+                  Activation Global Network
+                </p>
+
+                <p className="mt-1 text-[9px] font-medium tracking-[0.17em] text-[#B8862B]">
+                  FROM BLOCK TO BREAKTHROUGH
+                </p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
     </PublicLayout>
   );
 }
+
