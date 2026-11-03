@@ -23,22 +23,64 @@ async function bootstrap(): Promise<void> {
 
 const isProduction =
   process.env.NODE_ENV === 'production' || isVercel;
-  const allowedOrigins = (process.env.WEB_ORIGIN ?? 'http://localhost:5173')
+  // const allowedOrigins = (process.env.WEB_ORIGIN ?? 'http://localhost:5173')
+  //   .split(',')
+  //   .map((value) => value.trim())
+  //   .filter(Boolean);
+
+  const allowedOrigins = new Set(
+  (process.env.WEB_ORIGIN ?? 'http://localhost:5173')
     .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
+    .map((value) => value.trim().replace(/\/$/, ''))
+    .filter(Boolean),
+);
+
+console.log('AGN allowed frontend origins:', [...allowedOrigins]);
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-  app.enableCors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) callback(null, true);
-      else callback(new Error('Origin is not allowed by CORS.'));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'X-CSRF-Token'],
-  });
+  // app.enableCors({
+  //   origin: (origin, callback) => {
+  //     if (!origin || allowedOrigins.includes(origin)) callback(null, true);
+  //     else callback(new Error('Origin is not allowed by CORS.'));
+  //   },
+  //   credentials: true,
+  //   methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  //   allowedHeaders: ['Content-Type', 'X-CSRF-Token'],
+  // });
+app.enableCors({
+  origin: (origin, callback) => {
+    // Allow requests without an Origin header, such as server-to-server requests.
+    if (!origin) {
+      return callback(null, true);
+    }
 
+    const normalizedOrigin = origin.replace(/\/$/, '');
+
+    if (allowedOrigins.has(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    console.warn(`Blocked CORS origin: ${origin}`);
+
+    return callback(null, false);
+  },
+
+  credentials: true,
+
+  methods: [
+    'GET',
+    'POST',
+    'PATCH',
+    'PUT',
+    'DELETE',
+    'OPTIONS',
+  ],
+
+  allowedHeaders: [
+    'Content-Type',
+    'X-CSRF-Token',
+  ],
+});
 if (isVercel) {
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 }

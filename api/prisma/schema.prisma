@@ -60,6 +60,46 @@ enum SponsorshipCommitmentStatus {
   CANCELLED
 }
 
+enum PaymentProvider {
+  PAYSTACK
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESSFUL
+  FAILED
+  ABANDONED
+  REFUNDED
+}
+
+enum PaymentPurpose {
+  DIRECT_SPONSORSHIP
+  SPONSORSHIP_COMMITMENT
+}
+
+enum NotificationChannel {
+  EMAIL
+}
+
+enum NotificationStatus {
+  QUEUED
+  PROCESSING
+  SENT
+  FAILED
+}
+
+enum NotificationEvent {
+  REGISTRATION_RECEIVED
+  SPONSORSHIP_ENQUIRY_RECEIVED
+  SPONSORSHIP_COMMITMENT_CREATED
+  PAYMENT_SUCCESSFUL
+  PAYMENT_FAILED
+  PAYMENT_RECEIPT_SUBMITTED
+  VOLUNTEER_APPLICATION_RECEIVED
+}
+
 model Event {
   id                  String                  @id @default(cuid())
   slug                String                  @unique
@@ -79,6 +119,8 @@ model Event {
   commitments         SponsorshipCommitment[]
   speakers            Speaker[]
   sessions            Session[]
+  payments      Payment[]
+notifications NotificationLog[]
   createdAt           DateTime                @default(now())
   updatedAt           DateTime                @updatedAt
 
@@ -192,6 +234,7 @@ model SponsorshipEnquiry {
   assignedTo     AdminUser?        @relation("SponsorshipAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   consentAt      DateTime
   commitments    SponsorshipCommitment[]
+  payments Payment[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
@@ -213,6 +256,7 @@ model SponsorshipCommitment {
   status      SponsorshipCommitmentStatus  @default(PROPOSED)
   notes       String?                      @db.Text
   receipts    SponsorshipReceipt[]
+  payments Payment[]
   createdAt   DateTime                     @default(now())
   updatedAt   DateTime                     @updatedAt
 
@@ -282,5 +326,80 @@ model AuditLog {
   createdAt    DateTime  @default(now())
 
   @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model Payment {
+  id                String          @id @default(cuid())
+  eventId           String
+  event             Event           @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  enquiryId         String?
+  enquiry           SponsorshipEnquiry? @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
+
+  commitmentId      String?
+  commitment        SponsorshipCommitment? @relation(fields: [commitmentId], references: [id], onDelete: SetNull)
+
+  purpose           PaymentPurpose
+  provider          PaymentProvider @default(PAYSTACK)
+  status            PaymentStatus   @default(PENDING)
+
+  reference         String          @unique
+  providerReference String?         @unique
+
+  amount            Decimal         @db.Decimal(14, 2)
+  currency          String          @default("NGN")
+
+  payerName         String
+  payerEmail        String
+  payerPhone        String?
+
+  authorizationUrl  String?
+  paidAt            DateTime?
+  failureReason     String?
+
+  providerResponse  Json?
+  metadata          Json?
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([eventId, status, createdAt])
+  @@index([enquiryId])
+  @@index([commitmentId])
+  @@index([payerEmail, createdAt])
+}
+
+model NotificationLog {
+  id             String             @id @default(cuid())
+  eventId        String
+  event          Event              @relation(fields: [eventId], references: [id], onDelete: Restrict)
+
+  eventType      NotificationEvent
+  channel        NotificationChannel @default(EMAIL)
+  status         NotificationStatus @default(QUEUED)
+
+  recipient      String
+  subject        String
+  templateKey    String
+
+  entityType     String
+  entityId       String
+
+  idempotencyKey String             @unique
+  payload        Json?
+
+  attempts       Int                @default(0)
+  maxAttempts    Int                @default(5)
+  nextAttemptAt  DateTime           @default(now())
+
+  sentAt         DateTime?
+  lastError      String?
+
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([eventId, createdAt])
   @@index([entityType, entityId])
 }
