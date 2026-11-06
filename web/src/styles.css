@@ -861,3 +861,45 @@ img { max-width: 100%; }
   .records-pagination > div { width: 100%; justify-content: space-between; }
   .records-pagination button { min-height: 36px; }
 }
+/* =========================================
+   SMART SCROLL HEADER
+========================================= */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  transition:
+    transform 0.35s ease,
+    opacity 0.35s ease,
+    visibility 0.35s ease;
+  will-change: transform;
+}
+
+.site-header.header-visible {
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+}
+
+.site-header.header-hidden {
+  transform: translateY(-100%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Keep header visible while mobile navigation is open */
+.site-header.header-menu-open {
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .site-header {
+    transition: none;
+  }
+}
