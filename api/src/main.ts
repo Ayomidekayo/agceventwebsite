@@ -17,8 +17,9 @@ async function bootstrap(): Promise<void> {
   if (!sessionSecret || sessionSecret.length < 32 || sessionSecret.includes('replace-this')) {
     throw new Error('SESSION_SECRET must be a unique random value of at least 32 characters.');
   }
-
-  const app = await NestFactory.create(AppModule);
+const app = await NestFactory.create(AppModule, {
+  rawBody: true,
+});
  const isVercel = process.env.VERCEL === '1';
 
 const isProduction =
@@ -110,19 +111,58 @@ if (isVercel) {
   }) as RequestHandler);
 
   // Require a valid session-backed CSRF token for all state-changing requests.
+  // app.use((request: Request, response: Response, next: NextFunction) => {
+  //   const safeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(request.method.toUpperCase());
+  //   if (safeMethod) return next();
+  //   const expected = request.session?.csrfToken;
+  //   const supplied = request.header('x-csrf-token');
+  //   if (!expected || !supplied) {
+  //     return response.status(403).json({ statusCode: 403, message: 'CSRF token missing or expired.' });
+  //   }
+  //   const expectedBuffer = Buffer.from(expected);
+  //   const suppliedBuffer = Buffer.from(supplied);
+  //   if (expectedBuffer.length !== suppliedBuffer.length || !timingSafeEqual(expectedBuffer, suppliedBuffer)) {
+  //     return response.status(403).json({ statusCode: 403, message: 'CSRF token missing or expired.' });
+  //   }
+  //   return next();
+  // });
+
   app.use((request: Request, response: Response, next: NextFunction) => {
-    const safeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(request.method.toUpperCase());
+    const isPaystackWebhook =
+      request.method.toUpperCase() === 'POST' &&
+      request.path === '/api/v1/payments/webhook';
+
+    if (isPaystackWebhook) {
+      return next();
+    }
+
+    const safeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(
+      request.method.toUpperCase(),
+    );
+
     if (safeMethod) return next();
+
     const expected = request.session?.csrfToken;
     const supplied = request.header('x-csrf-token');
     if (!expected || !supplied) {
-      return response.status(403).json({ statusCode: 403, message: 'CSRF token missing or expired.' });
+      return response.status(403).json({
+        statusCode: 403,
+        message: 'CSRF token missing or expired.',
+      });
     }
+
     const expectedBuffer = Buffer.from(expected);
     const suppliedBuffer = Buffer.from(supplied);
-    if (expectedBuffer.length !== suppliedBuffer.length || !timingSafeEqual(expectedBuffer, suppliedBuffer)) {
-      return response.status(403).json({ statusCode: 403, message: 'CSRF token missing or expired.' });
+    if (
+      expectedBuffer.length !== suppliedBuffer.length ||
+      !timingSafeEqual(expectedBuffer, suppliedBuffer)
+    ) {
+      return response.status(403).json({
+        statusCode: 403,
+        message: 'CSRF token missing or expired.',
+      });
     }
+
     return next();
   });
 
