@@ -1,0 +1,189 @@
+/* AGN 2027 — premium motion system. Import after all existing responsive styles. */
+:root {
+  --agn-motion-ease: cubic-bezier(.22, 1, .36, 1);
+  --agn-motion-soft: cubic-bezier(.2, .75, .25, 1);
+  --agn-motion-duration: 760ms;
+  --agn-motion-shadow: 0 22px 55px rgb(29 22 16 / 13%);
+}
+
+/* Directional reveal system: up, down, left, right, pop, zoom and fade. */
+[data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 30px, 0);
+  transition:
+    opacity 720ms var(--agn-motion-ease),
+    transform 820ms var(--agn-motion-ease),
+    filter 820ms var(--agn-motion-ease);
+  transition-delay: var(--agn-reveal-delay, 0ms);
+  filter: blur(2px);
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+}
+[data-reveal="up"] { transform: translate3d(0, 34px, 0); }
+[data-reveal="down"] { transform: translate3d(0, -30px, 0); }
+[data-reveal="left"] { transform: translate3d(34px, 0, 0); }
+[data-reveal="right"] { transform: translate3d(-34px, 0, 0); }
+[data-reveal="pop"] { transform: translate3d(0, 16px, 0) scale(.91); filter: blur(5px); }
+[data-reveal="zoom"] { transform: scale(.94); filter: blur(4px); }
+[data-reveal="fade"] { transform: none; }
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  filter: blur(0);
+  will-change: auto;
+}
+
+/* Children of these grids enter as a composed sequence, not a wall of motion. */
+.agn-stagger > [data-reveal] { transition-delay: var(--agn-reveal-delay, 0ms); }
+[data-reveal-delay="80"] { --agn-reveal-delay: 80ms; }
+[data-reveal-delay="100"] { --agn-reveal-delay: 100ms; }
+[data-reveal-delay="160"] { --agn-reveal-delay: 160ms; }
+[data-reveal-delay="180"] { --agn-reveal-delay: 180ms; }
+[data-reveal-delay="240"] { --agn-reveal-delay: 240ms; }
+[data-reveal-delay="320"] { --agn-reveal-delay: 320ms; }
+
+/* First screen: crisp editorial entrance with a little depth. */
+.agn-announcement-enter { animation: agn-strip-enter 650ms var(--agn-motion-ease) both; }
+.agn-hero-title { animation: none; }
+.agn-hero-art-enter { animation: agn-art-enter 1050ms 160ms var(--agn-motion-ease) both; }
+@keyframes agn-strip-enter {
+  from { opacity: 0; transform: translate3d(0, -12px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes agn-art-enter {
+  from { opacity: 0; transform: translate3d(30px, 22px, 0) scale(.94); filter: blur(5px); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+
+/* Subtle ambient movement gives the hero artwork life without distracting. */
+.hero-art-wrap { transform-style: preserve-3d; }
+.hero-art-wrap .hero-orbit { animation: agn-orbit-breathe 7s ease-in-out infinite alternate; }
+.hero-art-wrap .orbit-two { animation-delay: -3.5s; }
+.hero-art-wrap .art-sun { animation: agn-sun-breathe 5.5s ease-in-out infinite alternate; transform-origin: center; }
+@keyframes agn-orbit-breathe {
+  from { opacity: .38; transform: scale(.985) rotate(-2deg); }
+  to { opacity: .72; transform: scale(1.025) rotate(2deg); }
+}
+@keyframes agn-sun-breathe {
+  from { transform: scale(.97); filter: saturate(.94); }
+  to { transform: scale(1.035); filter: saturate(1.12); }
+}
+
+/* Premium interaction feedback: quick, quiet, tactile. */
+.agn-button-motion {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition: transform 260ms var(--agn-motion-ease), box-shadow 260ms ease, background-color 260ms ease;
+}
+.agn-button-motion::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -125%;
+  z-index: -1;
+  width: 75%;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 22%), transparent);
+  transition: left 620ms var(--agn-motion-ease);
+}
+.agn-card-hover {
+  transform: translateZ(0);
+  transition: transform 420ms var(--agn-motion-ease), box-shadow 420ms ease, border-color 300ms ease;
+  backface-visibility: hidden;
+}
+.agn-text-link svg,
+.footer-cta svg,
+.involvement-action svg { transition: transform 260ms var(--agn-motion-ease); }
+.experience-card .experience-line { transform-origin: left center; transition: transform 520ms var(--agn-motion-ease); }
+
+@media (hover: hover) and (pointer: fine) {
+  .agn-button-motion:hover { transform: translateY(-3px); box-shadow: 0 13px 28px rgb(25 24 23 / 18%); }
+  .agn-button-motion:hover::after { left: 150%; }
+  .agn-card-hover:hover { transform: translateY(-8px); box-shadow: var(--agn-motion-shadow); }
+  .experience-card:hover .experience-line { transform: scaleX(1.08); }
+  .agn-text-link:hover svg,
+  .footer-cta:hover svg,
+  .involvement-card:hover .involvement-action svg { transform: translate(4px, -4px); }
+}
+
+/* Mobile navigation: layered glass backdrop and spring-like panel entrance. */
+@media (max-width: 900px) {
+  .site-header { z-index: 1000; }
+  .header-inner { position: relative; }
+  .primary-nav, .primary-nav.primary-nav-open { display: none !important; }
+  .agn-mobile-backdrop {
+    position: fixed;
+    inset: 78px 0 0;
+    z-index: 1001;
+    width: 100%;
+    height: calc(100dvh - 78px);
+    border: 0;
+    background: rgb(18 17 16 / 34%);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+  }
+  .agn-mobile-menu {
+    position: fixed;
+    top: 88px;
+    right: 16px;
+    left: 16px;
+    z-index: 1100;
+    display: grid;
+    gap: 4px;
+    max-height: min(70dvh, 480px);
+    overflow-y: auto;
+    padding: 13px;
+    border: 1px solid rgb(236 230 220 / 90%);
+    border-radius: 18px;
+    background: rgb(255 253 249 / 97%);
+    box-shadow: 0 24px 65px rgb(23 23 23 / 22%);
+    transform-origin: top center;
+  }
+  .agn-mobile-menu > div > a,
+  .agn-mobile-team-link,
+  .agn-mobile-register-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 49px;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 11px;
+    color: #35312d;
+    font-size: 14px;
+    font-weight: 650;
+    transition: background-color 180ms ease, transform 180ms ease;
+  }
+  .agn-mobile-menu > div > a:hover,
+  .agn-mobile-team-link:hover { background: #fff2e9; }
+  .agn-mobile-team-link { margin-top: 5px; border-top: 1px solid #ece6dc; border-radius: 0; }
+  .agn-mobile-register-link { margin-top: 4px; color: #fff; background: #191817; }
+  .menu-toggle { position: relative; z-index: 1200; }
+}
+
+@media (max-width: 600px) {
+  [data-reveal] { transition-duration: 620ms; }
+  [data-reveal="up"] { transform: translate3d(0, 22px, 0); }
+  [data-reveal="down"] { transform: translate3d(0, -18px, 0); }
+  [data-reveal="left"], [data-reveal="right"] { transform: translate3d(0, 18px, 0); }
+  [data-reveal="pop"] { transform: translate3d(0, 12px, 0) scale(.96); }
+  [data-reveal].is-visible { transform: translate3d(0, 0, 0) scale(1); }
+  .agn-hero-art-enter { animation-duration: 780ms; }
+  .agn-mobile-menu { top: 84px; right: 12px; left: 12px; }
+  .agn-mobile-backdrop { inset-block-start: 78px; }
+  .hero-art, .hero-art-wrap { max-width: 100%; }
+  .hero-art-wrap { overflow: hidden; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+  [data-reveal], [data-reveal].is-visible {
+    opacity: 1 !important; transform: none !important; filter: none !important;
+    transition: none !important; will-change: auto;
+  }
+  .agn-announcement-enter, .agn-hero-art-enter,
+  .hero-art-wrap .hero-orbit, .hero-art-wrap .art-sun { animation: none !important; }
+  .agn-button-motion, .agn-button-motion::after, .agn-card-hover,
+  .agn-text-link svg, .footer-cta svg, .involvement-action svg,
+  .experience-card .experience-line { transition: none !important; }
+}

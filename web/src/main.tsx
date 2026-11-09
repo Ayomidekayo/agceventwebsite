@@ -5,6 +5,9 @@ import { BrowserRouter } from 'react-router-dom'
 
 import './styles.css'
 import './styles/responsive-polish.css'
+import './styles/motion.css';
+import  './styles/agn-payment-motion.css'
+import './styles/agn-forms-premium-motion.css';
 import App from './App'
 const queryClient = new QueryClient({
   defaultOptions: {

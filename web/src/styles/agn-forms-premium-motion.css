@@ -1,0 +1,280 @@
+/*
+ * AGN 2027 — Premium motion system for Registration, Volunteer and Sponsorship.
+ * Import this file AFTER the existing responsive styles.
+ * No component/business-logic changes or extra animation dependency required.
+ */
+
+/* ---------- Motion foundations ---------- */
+@keyframes agn-rise-in {
+  from { opacity: 0; transform: translate3d(0, 26px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes agn-drop-in {
+  from { opacity: 0; transform: translate3d(0, -18px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes agn-pop-in {
+  0%   { opacity: 0; transform: scale(.94) translateY(8px); }
+  72%  { opacity: 1; transform: scale(1.012) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes agn-soft-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217,164,65,0); }
+  50%      { box-shadow: 0 0 0 9px rgba(217,164,65,.055); }
+}
+
+@keyframes agn-modal-backdrop {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to   { opacity: 1; backdrop-filter: blur(8px); }
+}
+
+@keyframes agn-modal-pop {
+  0%   { opacity: 0; transform: translate3d(0, 22px, 0) scale(.965); }
+  75%  { opacity: 1; transform: translate3d(0, -2px, 0) scale(1.006); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes agn-line-reveal {
+  from { transform: scaleX(0); opacity: .35; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+/* ---------- Registration + Volunteer page entrance ---------- */
+.form-page .form-page-grid {
+  animation: agn-rise-in .78s cubic-bezier(.22,1,.36,1) both;
+}
+
+.form-page .form-aside {
+  animation: agn-drop-in .82s cubic-bezier(.22,1,.36,1) .06s both;
+  transform-origin: top center;
+}
+
+.form-page .form-main {
+  animation: agn-rise-in .82s cubic-bezier(.22,1,.36,1) .13s both;
+}
+
+.form-page .form-main > .page-intro,
+.form-page .form-main > :first-child:not(form) {
+  animation: agn-rise-in .68s cubic-bezier(.22,1,.36,1) .18s both;
+}
+
+.form-page .form-section-label {
+  animation: agn-drop-in .58s cubic-bezier(.22,1,.36,1) both;
+}
+
+.form-page .form-fields > * {
+  animation: agn-rise-in .58s cubic-bezier(.22,1,.36,1) both;
+}
+
+.form-page .form-fields > *:nth-child(1) { animation-delay: .08s; }
+.form-page .form-fields > *:nth-child(2) { animation-delay: .13s; }
+.form-page .form-fields > *:nth-child(3) { animation-delay: .18s; }
+.form-page .form-fields > *:nth-child(4) { animation-delay: .23s; }
+.form-page .form-fields > *:nth-child(5) { animation-delay: .28s; }
+.form-page .form-fields > *:nth-child(6) { animation-delay: .33s; }
+.form-page .form-fields > *:nth-child(7) { animation-delay: .38s; }
+.form-page .form-fields > *:nth-child(8) { animation-delay: .43s; }
+.form-page .form-fields > *:nth-child(9) { animation-delay: .48s; }
+
+.form-page .form-section-label + .form-fields {
+  animation: none;
+}
+
+.form-page .form-section-label + .form-fields > * {
+  will-change: opacity, transform;
+}
+
+.form-page .application-form > .form-section-label:nth-of-type(2) {
+  animation-delay: .16s;
+}
+
+.form-page .application-form > .form-fields,
+.form-page .application-form > .form-section-label,
+.form-page .application-form > .consent,
+.form-page .application-form > button,
+.form-page .application-form > .form-smallprint {
+  animation-fill-mode: both;
+}
+
+.form-page .application-form > button[type="submit"] {
+  transition: transform .24s cubic-bezier(.22,1,.36,1),
+              box-shadow .24s ease,
+              background-color .24s ease;
+}
+
+.form-page .application-form > button[type="submit"]:not(:disabled):hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px -14px rgba(16,27,53,.55);
+}
+
+.form-page .application-form > button[type="submit"]:not(:disabled):active {
+  transform: translateY(-1px) scale(.99);
+}
+
+/* Aside illustration: restrained floating treatment */
+.form-aside .volunteer-aside-graphic,
+.form-aside .aside-shape {
+  animation: agn-pop-in .9s cubic-bezier(.22,1,.36,1) .22s both;
+}
+
+.form-aside .graphic-ring,
+.form-aside .graphic-ring-two {
+  transform-origin: center;
+  animation: agn-soft-glow 5.5s ease-in-out 1.2s infinite;
+}
+
+/* ---------- Sponsorship page ---------- */
+.sponsor-hero .sponsor-hero-grid > :first-child {
+  animation: agn-rise-in .82s cubic-bezier(.22,1,.36,1) .06s both;
+}
+
+.sponsor-hero .sponsor-hero-graphic {
+  animation: agn-pop-in .9s cubic-bezier(.22,1,.36,1) .18s both;
+}
+
+.sponsor-hero .sponsor-graphic-line,
+.sponsor-hero .eyebrow-line {
+  transform-origin: left center;
+  animation: agn-line-reveal .9s cubic-bezier(.22,1,.36,1) .48s both;
+}
+
+.support-levels .section-heading-row {
+  animation: agn-rise-in .72s cubic-bezier(.22,1,.36,1) both;
+}
+
+.support-levels .level-card {
+  animation: agn-rise-in .68s cubic-bezier(.22,1,.36,1) both;
+  transition: transform .28s cubic-bezier(.22,1,.36,1),
+              box-shadow .28s ease,
+              border-color .28s ease;
+}
+
+.support-levels .level-card:nth-child(1) { animation-delay: .06s; }
+.support-levels .level-card:nth-child(2) { animation-delay: .12s; }
+.support-levels .level-card:nth-child(3) { animation-delay: .18s; }
+.support-levels .level-card:nth-child(4) { animation-delay: .24s; }
+.support-levels .level-card:nth-child(5) { animation-delay: .30s; }
+
+.support-levels .level-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 42px -28px rgba(16,27,53,.38);
+}
+
+.sponsor-form-section .sponsor-form-copy {
+  animation: agn-rise-in .78s cubic-bezier(.22,1,.36,1) .06s both;
+}
+
+.sponsor-form-section .sponsor-form-card {
+  animation: agn-pop-in .82s cubic-bezier(.22,1,.36,1) .14s both;
+}
+
+.sponsor-form-section .sponsor-benefit {
+  animation: agn-rise-in .6s cubic-bezier(.22,1,.36,1) both;
+}
+
+.sponsor-form-section .sponsor-benefit:nth-of-type(1) { animation-delay: .16s; }
+.sponsor-form-section .sponsor-benefit:nth-of-type(2) { animation-delay: .23s; }
+
+/* Sponsorship form uses the same field cadence as the other forms. */
+.sponsor-form-section .form-fields > * {
+  animation: agn-rise-in .58s cubic-bezier(.22,1,.36,1) both;
+}
+.sponsor-form-section .form-fields > *:nth-child(1) { animation-delay: .06s; }
+.sponsor-form-section .form-fields > *:nth-child(2) { animation-delay: .11s; }
+.sponsor-form-section .form-fields > *:nth-child(3) { animation-delay: .16s; }
+.sponsor-form-section .form-fields > *:nth-child(4) { animation-delay: .21s; }
+.sponsor-form-section .form-fields > *:nth-child(5) { animation-delay: .26s; }
+.sponsor-form-section .form-fields > *:nth-child(6) { animation-delay: .31s; }
+.sponsor-form-section .form-fields > *:nth-child(7) { animation-delay: .36s; }
+
+/* ---------- Confirmation and payment dialogs ---------- */
+/* Covers the existing volunteer, registration, sponsorship success and payment-choice overlays. */
+div[class*="fixed"][class*="inset-0"][class*="backdrop-blur"] {
+  animation: agn-modal-backdrop .28s ease-out both;
+}
+
+div[class*="fixed"][class*="inset-0"][class*="backdrop-blur"] > div[role="dialog"] {
+  transform-origin: center;
+  animation: agn-modal-pop .58s cubic-bezier(.22,1,.36,1) both;
+}
+
+div[role="dialog"] [class*="rounded-full"][class*="bg-\\[\\#E9B949\\]"],
+div[role="dialog"] [class*="rounded-full"][class*="bg-\\[\\#D9A441\\]"] {
+  animation: agn-pop-in .7s cubic-bezier(.22,1,.36,1) .12s both;
+}
+
+div[role="dialog"] button,
+div[role="dialog"] a {
+  transition: transform .22s cubic-bezier(.22,1,.36,1),
+              box-shadow .22s ease,
+              background-color .22s ease,
+              border-color .22s ease;
+}
+
+div[role="dialog"] button:not(:disabled):hover,
+div[role="dialog"] a:hover {
+  transform: translateY(-2px);
+}
+
+div[role="dialog"] button:not(:disabled):active,
+div[role="dialog"] a:active {
+  transform: translateY(0) scale(.99);
+}
+
+/* Keep focus indicators visible and consistent. */
+.form-page button:focus-visible,
+.sponsor-form-section button:focus-visible,
+div[role="dialog"] button:focus-visible,
+div[role="dialog"] a:focus-visible {
+  outline: 3px solid rgba(233,185,73,.58);
+  outline-offset: 3px;
+}
+
+/* ---------- Mobile tuning ---------- */
+@media (max-width: 640px) {
+  .form-page .form-page-grid,
+  .sponsor-hero .sponsor-hero-grid > :first-child,
+  .sponsor-form-section .sponsor-form-copy {
+    animation-duration: .62s;
+  }
+
+  .form-page .form-aside,
+  .form-page .form-main,
+  .sponsor-hero .sponsor-hero-graphic,
+  .sponsor-form-section .sponsor-form-card {
+    animation-duration: .68s;
+  }
+
+  .support-levels .level-card:hover {
+    transform: translateY(-2px);
+  }
+
+  div[class*="fixed"][class*="inset-0"][class*="backdrop-blur"] {
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  div[class*="fixed"][class*="inset-0"][class*="backdrop-blur"] > div[role="dialog"] {
+    max-height: calc(100svh - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Reduce motion for users who request it at OS/browser level. */
+@media (prefers-reduced-motion: reduce) {
+  .form-page *,
+  .sponsor-hero *,
+  .support-levels *,
+  .sponsor-form-section *,
+  div[class*="fixed"][class*="inset-0"][class*="backdrop-blur"],
+  div[role="dialog"] * {
+    animation: none !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+    transform: none !important;
+  }
+}

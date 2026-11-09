@@ -1,0 +1,30 @@
+/* AGN payment callback motion polish.
+   Import after the main stylesheet. The page is responsive and honours reduced motion. */
+
+.agn-payment-page {
+  isolation: isolate;
+}
+
+@media (max-width: 640px) {
+  .agn-payment-page {
+    min-height: 70svh;
+    align-items: flex-start;
+    padding-top: clamp(2rem, 8vh, 4rem);
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  }
+
+  .agn-payment-page > section {
+    border-radius: 1.35rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agn-payment-page *,
+  .agn-payment-page *::before,
+  .agn-payment-page *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
