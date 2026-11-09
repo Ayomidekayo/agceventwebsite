@@ -2,6 +2,19 @@ import type { ChangeEvent, HTMLInputTypeAttribute } from 'react';
 
 export type FormFieldOption = string | { value: string; label: string };
 
+// type FormFieldProps = {
+//   label: string;
+//   name: string;
+//   value: string;
+//   onChange: (value: string) => void;
+//   type?: HTMLInputTypeAttribute;
+//   required?: boolean;
+//   placeholder?: string;
+//   options?: FormFieldOption[];
+//   full?: boolean;
+// };
+
+
 type FormFieldProps = {
   label: string;
   name: string;
@@ -13,6 +26,7 @@ type FormFieldProps = {
   options?: FormFieldOption[];
   full?: boolean;
 };
+
 
 export default function FormField({
   label,
